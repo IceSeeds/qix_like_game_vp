@@ -5,28 +5,47 @@ var top_image: Sprite2D
 var mask_bitmap: BitMap
 var current_mask_texture: ImageTexture
 
-# image_layers.gdの_ready関数内に追加
 func _ready():
 	# 画像の初期化
 	bottom_image = $BottomImage
 	top_image = $TopImage
 	
-	# テスト用の仮画像を設定
-	var temp_texture = load("res://icon.svg")
-	
+	# 初期状態では空の状態にしておく
 	if bottom_image and top_image:
-		bottom_image.texture = temp_texture
-		top_image.texture = temp_texture
-		
-		# 下層画像を赤色に設定（明確な視覚的差異のため）
-		bottom_image.modulate = Color(1, 0, 0, 1)  # 赤色
-		
 		# 画像サイズを設定
-		bottom_image.scale = Vector2(5, 5)
-		top_image.scale = Vector2(5, 5)
+		#bottom_image.scale = Vector2(5, 5)
+		#top_image.scale = Vector2(5, 5)
+		bottom_image.scale = Vector2(1, 1)
+		top_image.scale = Vector2(1, 1)
 		
-		# マスクの初期化
-		init_mask()
+		# 画像セレクタから初期画像をロード
+		var image_selector = get_parent().get_node("ImageSelector")
+		if image_selector:
+			var initial_pair = image_selector.get_random_image_pair()
+			print( initial_pair )
+			if initial_pair:
+				load_image_pair(initial_pair["top"], initial_pair["bottom"])
+			else:
+				# 画像が見つからない場合は空の状態を初期化
+				init_empty_state()
+				print( "画像が見つからない場合は空の状態を初期化" )
+		else:
+			print( "image_selectorが見つからない場合は空の状態を初期化" )
+			init_empty_state()
+
+# 画像がない場合の初期化
+func init_empty_state():
+	# 透明な画像を作成
+	var empty_image = Image.create(128, 128, false, Image.FORMAT_RGBA8)
+	empty_image.fill(Color(0, 0, 0, 0))
+	
+	var empty_texture = ImageTexture.create_from_image(empty_image)
+	
+	bottom_image.texture = empty_texture
+	top_image.texture = empty_texture
+	
+	# マスクの初期化
+	init_mask()
 
 func init_mask():
 	# マスクの初期化
@@ -37,24 +56,28 @@ func init_mask():
 	# マスク用テクスチャの初期化
 	current_mask_texture = ImageTexture.create_from_image(img)
 	
-	# シェーダーマテリアルの設定（簡易版）
+	# シェーダーマテリアルの設定
 	var shader_material = ShaderMaterial.new()
 	
-	# シンプルなマスクシェーダーを作成
-	var shader_code = """
-	shader_type canvas_item;
-	uniform sampler2D mask_texture : hint_default_white;
+	# シェーダーファイルの読み込み
+	var shader = load("res://shaders/mask.gdshader")
+	if shader:
+		shader_material.shader = shader
+	else:
+		# シェーダーファイルがない場合はコードから生成
+		shader_material.shader = Shader.new()
+		shader_material.shader.code = """
+		shader_type canvas_item;
+		uniform sampler2D mask_texture : hint_default_white;
+		
+		void fragment() {
+			vec4 color = texture(TEXTURE, UV);
+			float mask = texture(mask_texture, UV).a;
+			color.a *= mask;
+			COLOR = color;
+		}
+		"""
 	
-	void fragment() {
-		vec4 color = texture(TEXTURE, UV);
-		float mask = texture(mask_texture, UV).a;
-		color.a *= mask;
-		COLOR = color;
-	}
-	"""
-	
-	shader_material.shader = Shader.new()
-	shader_material.shader.code = shader_code
 	shader_material.set_shader_parameter("mask_texture", current_mask_texture)
 	top_image.material = shader_material
 
@@ -143,12 +166,11 @@ func calculate_cut_percentage():
 	var cut_pixels = calculate_cut_pixels()
 	return (cut_pixels / float(total_pixels)) * 100
 
-# 切り取ったピクセル数を計算の修正
+# 切り取ったピクセル数を計算
 func calculate_cut_pixels():
 	var count = 0
 	for y in range(mask_bitmap.get_size().y):
 		for x in range(mask_bitmap.get_size().x):
-			# ここを修正
 			if not mask_bitmap.get_bit(x, y):
 				count += 1
 	return count

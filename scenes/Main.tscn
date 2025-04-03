@@ -44,12 +44,10 @@ z_index = 2
 
 [node name="Boundary" type="Line2D" parent="GameArea"]
 
-[node name="UIArea" type="Node2D" parent="."]
+[node name="ImageSelector" type="Node" parent="GameArea"]
+script = ExtResource("6_c01mt")
 
-[node name="ImageLayers" type="Node2D" parent="."]
+[node name="UIArea" type="Node2D" parent="."]
 
 [node name="UIManager" type="Node" parent="."]
 script = ExtResource("5_vcsgt")
-
-[node name="ImageSelector" type="Node" parent="."]
-script = ExtResource("6_c01mt")

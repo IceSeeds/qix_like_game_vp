@@ -5,6 +5,7 @@ var drawing = false
 var draw_points = []
 var draw_mode = "slow"  # "slow" または "fast"
 var drawing_line: Line2D
+var can_draw = true
 
 func _ready():
 	drawing_line = get_node("../DrawingLine")
@@ -20,12 +21,14 @@ func _physics_process(delta):
 	move_and_slide()
 	
 	# 描画状態の処理
-	if Input.is_action_just_pressed("ui_accept"):
-		start_drawing("slow")
-	elif Input.is_action_just_pressed("ui_select"):
-		start_drawing("fast")
-	elif Input.is_action_just_released("ui_accept") or Input.is_action_just_released("ui_select"):
-		end_drawing()
+	if can_draw:
+		if Input.is_action_just_pressed("ui_accept") or Input.is_action_just_pressed("draw_slow"):
+			start_drawing("slow")
+		elif Input.is_action_just_pressed("ui_select") or Input.is_action_just_pressed("draw_fast"):
+			start_drawing("fast")
+		elif (Input.is_action_just_released("ui_accept") or Input.is_action_just_released("draw_slow") or 
+			  Input.is_action_just_released("ui_select") or Input.is_action_just_released("draw_fast")) and drawing:
+			end_drawing()
 	
 	# 描画中なら点を追加
 	if drawing:
@@ -52,7 +55,6 @@ func start_drawing(mode):
 	else:
 		drawing_line.default_color = Color(1, 0, 0, 1)  # 赤色 (FAST DRAW)
 
-# player.gd の end_drawing 関数に追加
 func end_drawing():
 	if drawing and draw_points.size() > 2:
 		# 最後の点を追加して閉じる
@@ -83,3 +85,28 @@ func end_drawing():
 		debug_line.default_color = Color(1, 1, 0, 0.5)  # 黄色半透明
 		debug_line.width = 1.0
 		get_parent().add_child(debug_line)
+	
+	drawing = false
+	draw_points.clear()
+	drawing_line.clear_points()
+
+# 描画失敗時の処理（Qixなどの敵に接触した場合）
+func drawing_fail():
+	if drawing:
+		drawing = false
+		draw_points.clear()
+		drawing_line.clear_points()
+		
+		# 残機を減らす
+		var ui_manager = get_parent().get_parent().get_node("UIManager")
+		if ui_manager:
+			ui_manager.lose_life()
+		
+		# 一時的に描画を無効にする
+		can_draw = false
+		modulate = Color(1, 0, 0, 1)  # 赤色に点滅
+		
+		# 2秒後に回復
+		await get_tree().create_timer(2.0).timeout
+		can_draw = true
+		modulate = Color(1, 1, 1, 1)  # 通常色に戻す

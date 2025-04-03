@@ -1,4 +1,3 @@
-# scripts/qix.gd
 extends CharacterBody2D
 
 @export var speed = 200.0
@@ -14,11 +13,17 @@ func _ready():
 	).normalized() * speed
 	
 	# 境界を設定
-	var parent = get_parent()
-	if parent is Node2D:
-		var area_rect = Rect2(Vector2.ZERO, Vector2(1344, 1728))  # 仮の値、実際には親ノードから取得
-		boundary_min = area_rect.position
-		boundary_max = area_rect.position + area_rect.size
+	var image_layers = get_parent().get_node("ImageLayers")
+	if image_layers and image_layers.top_image:
+		var top_image = image_layers.top_image
+		var size = top_image.get_rect().size * top_image.scale
+		boundary_min = top_image.global_position - size/2
+		boundary_max = top_image.global_position + size/2
+	else:
+		# デフォルトの境界
+		var parent = get_parent()
+		boundary_min = Vector2.ZERO
+		boundary_max = Vector2(600, 600)  # 仮の値
 
 func _physics_process(delta):
 	# 一定確率で方向転換
@@ -50,7 +55,7 @@ func check_line_collision():
 	if player and player.drawing:
 		var draw_line = get_parent().get_node("DrawingLine")
 		if draw_line and draw_line.points.size() > 1:
-			# 簡易的な衝突判定（本来はもっと精密な判定が必要）
+			# 簡易的な衝突判定
 			for i in range(draw_line.points.size() - 1):
 				var segment_start = draw_line.to_global(draw_line.points[i])
 				var segment_end = draw_line.to_global(draw_line.points[i + 1])
