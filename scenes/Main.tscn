@@ -1,0 +1,55 @@
+[gd_scene load_steps=8 format=3 uid="uid://gwgbm0eetsrl"]
+
+[ext_resource type="Script" uid="uid://dwp1enbsejaql" path="res://scripts/main.gd" id="1_0bbpv"]
+[ext_resource type="Script" uid="uid://duc71abx70wr1" path="res://scripts/image_layers.gd" id="2_rarhs"]
+[ext_resource type="Script" uid="uid://0wv1c8plsjwv" path="res://scripts/player.gd" id="3_vcsgt"]
+[ext_resource type="Texture2D" uid="uid://crnqvdvwaj0vq" path="res://icon.svg" id="4_rarhs"]
+[ext_resource type="Script" uid="uid://bbhluwa3wbrru" path="res://scripts/ui_manager.gd" id="5_vcsgt"]
+[ext_resource type="Script" uid="uid://gc7u4k36adp2" path="res://scripts/image_selector.gd" id="6_c01mt"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_vcsgt"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_0bbpv")
+
+[node name="GameArea" type="Node2D" parent="."]
+
+[node name="ImageLayers" type="Node2D" parent="GameArea"]
+script = ExtResource("2_rarhs")
+
+[node name="BottomImage" type="Sprite2D" parent="GameArea/ImageLayers"]
+modulate = Color(0.756987, 0.183587, 0.350985, 1)
+scale = Vector2(5, 5)
+texture = ExtResource("4_rarhs")
+
+[node name="TopImage" type="Sprite2D" parent="GameArea/ImageLayers"]
+z_index = 1
+scale = Vector2(5, 5)
+
+[node name="Player" type="CharacterBody2D" parent="GameArea"]
+z_index = 2
+script = ExtResource("3_vcsgt")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GameArea/Player"]
+shape = SubResource("CircleShape2D_vcsgt")
+
+[node name="Sprite2D" type="Sprite2D" parent="GameArea/Player"]
+scale = Vector2(0.2, 0.2)
+texture = ExtResource("4_rarhs")
+
+[node name="DrawingLine" type="Line2D" parent="GameArea"]
+z_index = 2
+
+[node name="CutArea" type="Node2D" parent="GameArea"]
+
+[node name="Boundary" type="Line2D" parent="GameArea"]
+
+[node name="UIArea" type="Node2D" parent="."]
+
+[node name="ImageLayers" type="Node2D" parent="."]
+
+[node name="UIManager" type="Node" parent="."]
+script = ExtResource("5_vcsgt")
+
+[node name="ImageSelector" type="Node" parent="."]
+script = ExtResource("6_c01mt")
