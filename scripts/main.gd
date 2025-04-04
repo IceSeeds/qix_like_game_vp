@@ -42,12 +42,15 @@ func setup_layout():
 	# プレイヤーの初期位置
 	var player = $GameArea/Player
 	if player:
-		player.position = Vector2(scaled_width/2, scaled_height/2)  # ゲームエリア内の中央
+		player.position = Vector2(0, 0)  # ゲームエリア内の中央
+		# プレイヤーに境界を設定
+		player.set_movement_boundary(Vector2(0, 0), Vector2(scaled_width, scaled_height))
 	
 	# 画像レイヤーのスケールも調整
 	# 画像レイヤーノードを取得
 	var image_layers = $GameArea/ImageLayers
 	image_layers.position = Vector2(scaled_width/2, scaled_height/2)
+
 	if image_layers:
 		var top_image = image_layers.get_node("TopImage")
 		var bottom_image = image_layers.get_node("BottomImage")

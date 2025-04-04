@@ -11,9 +11,13 @@ var can_draw = true
 var boundary_min = Vector2.ZERO
 var boundary_max = Vector2.ZERO
 
+# 壁上にいるかの判定用
+var on_boundary = true
+var last_position = Vector2.ZERO
 
 func _ready():
 	drawing_line = get_node("../DrawingLine")
+	last_position = position
 
 func _physics_process(delta):
 	# 移動処理
@@ -23,21 +27,25 @@ func _physics_process(delta):
 	else:
 		velocity = Vector2.ZERO
 	
+	# 現在位置を保存
+	last_position = position
+	
 	move_and_slide()
 
 	# 移動後に境界チェック
 	position.x = clamp(position.x, boundary_min.x, boundary_max.x)
 	position.y = clamp(position.y, boundary_min.y, boundary_max.y)
 	
-	# 描画状態の処理
-	if can_draw:
-		if Input.is_action_just_pressed("ui_accept") or Input.is_action_just_pressed("draw_slow"):
-			start_drawing("slow")
-		elif Input.is_action_just_pressed("ui_select") or Input.is_action_just_pressed("draw_fast"):
-			start_drawing("fast")
-		elif (Input.is_action_just_released("ui_accept") or Input.is_action_just_released("draw_slow") or 
-			  Input.is_action_just_released("ui_select") or Input.is_action_just_released("draw_fast")) and drawing:
-			end_drawing()
+	# 壁上にいるかをチェック
+	check_boundary_position()
+	
+	# 壁から離れた時に描画を開始
+	if !drawing && !on_boundary && can_draw:
+		start_drawing("slow")  # デフォルトはslow、必要に応じて変更可能
+	
+	# 壁に戻った時に描画を終了
+	if drawing && on_boundary:
+		end_drawing()
 	
 	# 描画中なら点を追加
 	if drawing:
@@ -45,6 +53,22 @@ func _physics_process(delta):
 		var local_pos = drawing_line.to_local(global_position)
 		draw_points.append(local_pos)
 		drawing_line.points = PackedVector2Array(draw_points)
+
+# 壁上にいるかを判定する関数
+func check_boundary_position():
+	var tolerance = 1.0  # 判定の許容誤差
+	
+	on_boundary = false
+	
+	# 左右の壁
+	if abs(position.x - boundary_min.x) < tolerance || abs(position.x - boundary_max.x) < tolerance:
+		on_boundary = true
+	
+	# 上下の壁
+	if abs(position.y - boundary_min.y) < tolerance || abs(position.y - boundary_max.y) < tolerance:
+		on_boundary = true
+	
+	# ここに領域内の他の壁（すでに描画済みの線など）の判定も追加できます
 
 func set_movement_boundary(min_pos: Vector2, max_pos: Vector2):
 	boundary_min = min_pos
@@ -58,7 +82,7 @@ func start_drawing(mode):
 	# 重要: 最初の点も座標変換する
 	var local_pos = drawing_line.to_local(global_position)
 	draw_points.append(local_pos)
-	print( local_pos )
+	print("描画開始: ", local_pos)
 	
 	# 描画線の設定
 	drawing_line.clear_points()
