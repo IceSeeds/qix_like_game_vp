@@ -105,6 +105,7 @@ func end_drawing():
 			global_points.append(drawing_line.to_global(point))
 		
 		var percentage = get_node("../ImageLayers").cut_area(global_points)
+		print("切り取り開始 - 点の数: ", global_points.size())
 		print("切り取り処理完了 - 割合: ", percentage, "%")
 
 		# UIに進捗を反映

@@ -62,6 +62,9 @@ func init_empty_state():
 func init_mask():
 	# マスクの初期化
 	var img = top_image.texture.get_image()
+	# アルファ用にコンバート
+	img.convert(Image.FORMAT_RGBA8)
+
 	mask_bitmap = BitMap.new()
 	mask_bitmap.create_from_image_alpha(img)
 	
@@ -97,8 +100,7 @@ func cut_area(area_points):
 	if area_points.size() < 3:
 		return 0.0
 	
-	print("領域の点数: ", area_points.size())
-	
+	print("cut_area関数開始 - 点の数: ", area_points.size())
 	# テクスチャサイズを取得
 	var tex_img = top_image.texture.get_image()
 	var texture_size = tex_img.get_size()
