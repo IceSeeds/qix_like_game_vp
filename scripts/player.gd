@@ -21,8 +21,25 @@ func _ready():
 
 func _physics_process(delta):
 	# 移動処理
-	var direction = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
-	if direction:
+	var direction = Vector2.ZERO
+	
+	# 水平・垂直の入力を個別に処理
+	if Input.is_action_pressed("ui_right"):
+		direction.x = 1
+	elif Input.is_action_pressed("ui_left"):
+		direction.x = -1
+	
+	if Input.is_action_pressed("ui_down"):
+		direction.y = 1
+	elif Input.is_action_pressed("ui_up"):
+		direction.y = -1
+	
+	# 水平・垂直のどちらかのみ移動可能
+	if direction.x != 0 && direction.y != 0:
+		# 両方入力されている場合は、x方向を優先
+		direction.y = 0
+	
+	if direction != Vector2.ZERO:
 		velocity = direction * speed
 	else:
 		velocity = Vector2.ZERO
@@ -89,28 +106,30 @@ func start_drawing(mode):
 	drawing_line.add_point(local_pos)
 	
 	if mode == "slow":
-		drawing_line.default_color = Color(0, 1, 0, 0.1)  # 緑色 (SLOW DRAW)
+		drawing_line.default_color = Color(0, 1, 0, 1)  # 緑色 (SLOW DRAW)
+		drawing_line.width = 1
 	else:
 		drawing_line.default_color = Color(1, 0, 0, 1)  # 赤色 (FAST DRAW)
 
 func end_drawing():
 	if drawing and draw_points.size() > 2:
-		# 現在位置と最初の点を取得
+		# 最後の点を追加
 		var last_point = drawing_line.to_local(global_position)
-		var first_point = draw_points[0]
+		draw_points.append(last_point)
 		
-		# シンプルに最初の点に戻る
-		draw_points.append(last_point)  # 最後の点を追加
-		draw_points.append(first_point) # 最初の点に戻る
+		# 最初の点に戻る
+		var first_point = draw_points[0]
+		draw_points.append(first_point)
 		
 		# 描画線を更新
 		drawing_line.points = PackedVector2Array(draw_points)
 		
-		# 切り取り処理
+		# グローバル座標に変換
 		var global_points = []
 		for point in draw_points:
 			global_points.append(drawing_line.to_global(point))
 		
+		# 切り取り処理
 		var percentage = get_node("../ImageLayers").cut_area(global_points)
 		print("切り取り処理完了 - 割合: ", percentage, "%")
 		
@@ -120,11 +139,12 @@ func end_drawing():
 			ui_manager.update_progress(percentage)
 			ui_manager.update_score(draw_points.size() * (2 if draw_mode == "fast" else 1))
 		
-		# デバッグ表示
+		# デバッグ - 切り取られた領域の可視化
 		var debug_line = Line2D.new()
 		debug_line.points = PackedVector2Array(draw_points)
-		debug_line.default_color = Color(1, 1, 0, 0.5)
+		debug_line.default_color = Color(1, 1, 0, 0.5)  # 黄色半透明
 		debug_line.width = 1.0
+		debug_line.z_index = 5
 		get_parent().add_child(debug_line)
 	
 	# 描画状態をリセット
