@@ -25,7 +25,6 @@ func _ready():
 		top_image.position = Vector2(0, 0)
 		
 		# デバッグ情報
-		#print("Top image size: ", top_image.texture.get_size())
 		print("Top image scale: ", top_image.scale)
 		print("Top image position: ", top_image.position)
 		
@@ -33,16 +32,16 @@ func _ready():
 		var image_selector = get_parent().get_node("ImageSelector")
 		if image_selector:
 			var initial_pair = image_selector.get_random_image_pair()
-			print( initial_pair )
+			print(initial_pair)
 			if initial_pair:
 				load_image_pair(initial_pair["top"], initial_pair["bottom"])
 				auto_fit_image()
 			else:
 				# 画像が見つからない場合は空の状態を初期化
 				init_empty_state()
-				print( "画像が見つからない場合は空の状態を初期化" )
+				print("画像が見つからない場合は空の状態を初期化")
 		else:
-			print( "image_selectorが見つからない場合は空の状態を初期化" )
+			print("image_selectorが見つからない場合は空の状態を初期化")
 			init_empty_state()
 
 # 画像がない場合の初期化
@@ -79,109 +78,33 @@ func init_mask():
 	if shader:
 		shader_material.shader = shader
 	else:
-		print( "not found sheder file" )
+		print("not found sheder file")
 	
 	shader_material.set_shader_parameter("mask_texture", current_mask_texture)
 	top_image.material = shader_material
 
+# Qix風切り取りアルゴリズム
 func cut_area(area_points):
 	if area_points.size() < 3:
+		print("切り取りに必要な点の数が不足しています")
 		return 0.0
 	
-	print("cut_area関数開始 - 点の数: ", area_points.size())
+	print("切り取りポイント数: ", area_points.size())
+	
 	# テクスチャサイズを取得
 	var tex_img = top_image.texture.get_image()
-	var texture_size = tex_img.get_size()
+	var texture_size = Vector2(tex_img.get_width(), tex_img.get_height())
 	
-	# マスク画像を取得
+	# マスク画像を取得（編集用）
 	var mask_image = current_mask_texture.get_image()
 	
-	# 座標変換
-	var polygon_points = []
-	for point in area_points:
-		# グローバル座標から画像の正規化座標に変換
-		var local_pos = top_image.to_local(point)
-		# 正規化座標からピクセル座標に変換
-		var pixel_pos = Vector2i(
-			(local_pos.x + texture_size.x / 2.0) / top_image.scale.x,
-			(local_pos.y + texture_size.y / 2.0) / top_image.scale.y
-		)
-		polygon_points.append(pixel_pos)
+	# デバッグ情報
+	print("テクスチャサイズ: ", texture_size)
+	print("画像スケール: ", top_image.scale)
 	
-	# バウンディングボックスを計算して処理範囲を限定
-	var min_x = texture_size.x
-	var min_y = texture_size.y
-	var max_x = 0
-	var max_y = 0
 	
-	for point in polygon_points:
-		min_x = min(min_x, point.x)
-		min_y = min(min_y, point.y)
-		max_x = max(max_x, point.x)
-		max_y = max(max_y, point.y)
-	
-	# 範囲をテクスチャ内に制限
-	min_x = max(0, min_x)
-	min_y = max(0, min_y)
-	max_x = min(texture_size.x - 1, max_x)
-	max_y = min(texture_size.y - 1, max_y)
-	
-	# カウント用変数
-	var cut_pixels = 0
-	
-	# バウンディングボックス内のみを処理
-	for y in range(min_y, max_y + 1):
-		for x in range(min_x, max_x + 1):
-			if is_point_in_polygon(Vector2(x, y), polygon_points):
-				# ピクセルがポリゴン内にある場合、マスクを更新
-				if mask_bitmap.get_bit(x, y):
-					mask_bitmap.set_bit(x, y, false)
-					mask_image.set_pixel(x, y, Color(0, 0, 0, 0))
-					cut_pixels += 1
-	
-	# マスクテクスチャを更新
-	current_mask_texture.update(mask_image)
-	
-	# 切り取り割合を計算
-	var total_pixels = texture_size.x * texture_size.y
-	var percentage = (cut_pixels / float(total_pixels)) * 100
-	print("修正されたピクセル数: ", cut_pixels)
-	print("切り取り割合: ", percentage, "%")
-	
-	# 現在の切り取り状況に新しく切り取ったピクセルを加える
-	var current_cut_pixels = calculate_cut_pixels()
-	var total_percentage = (current_cut_pixels / float(total_pixels)) * 100
-	print("合計切り取り割合: ", total_percentage, "%")
-	
-	return total_percentage  # 累積の切り取り割合を返す
+	return 0
 
-# 点が領域内にあるかチェックするヘルパー関数
-func is_point_in_polygon(point, polygon):
-	var inside = false
-	var j = polygon.size() - 1
-	
-	for i in range(polygon.size()):
-		if ((polygon[i].y > point.y) != (polygon[j].y > point.y)) and \
-		   (point.x < polygon[i].x + (polygon[j].x - polygon[i].x) * (point.y - polygon[i].y) / (polygon[j].y - polygon[i].y)):
-			inside = not inside
-		j = i
-	
-	return inside
-
-# 切り取り割合を計算
-func calculate_cut_percentage():
-	var total_pixels = mask_bitmap.get_size().x * mask_bitmap.get_size().y
-	var cut_pixels = calculate_cut_pixels()
-	return (cut_pixels / float(total_pixels)) * 100
-
-# 切り取ったピクセル数を計算
-func calculate_cut_pixels():
-	var count = 0
-	for y in range(mask_bitmap.get_size().y):
-		for x in range(mask_bitmap.get_size().x):
-			if not mask_bitmap.get_bit(x, y):
-				count += 1
-	return count
 
 func load_image_pair(top_path, bottom_path):
 	# 新しい画像をロード
