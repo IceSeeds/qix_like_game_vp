@@ -89,63 +89,45 @@ func start_drawing(mode):
 	drawing_line.add_point(local_pos)
 	
 	if mode == "slow":
-		drawing_line.default_color = Color(0, 1, 0, 1)  # 緑色 (SLOW DRAW)
+		drawing_line.default_color = Color(0, 1, 0, 0.1)  # 緑色 (SLOW DRAW)
 	else:
 		drawing_line.default_color = Color(1, 0, 0, 1)  # 赤色 (FAST DRAW)
 
 func end_drawing():
 	if drawing and draw_points.size() > 2:
-		# 最後の点を追加して閉じる
-		draw_points.append(draw_points[0])
+		# 現在位置と最初の点を取得
+		var last_point = drawing_line.to_local(global_position)
+		var first_point = draw_points[0]
+		
+		# シンプルに最初の点に戻る
+		draw_points.append(last_point)  # 最後の点を追加
+		draw_points.append(first_point) # 最初の点に戻る
+		
+		# 描画線を更新
 		drawing_line.points = PackedVector2Array(draw_points)
 		
-		# グローバル座標に変換
+		# 切り取り処理
 		var global_points = []
 		for point in draw_points:
 			global_points.append(drawing_line.to_global(point))
 		
 		var percentage = get_node("../ImageLayers").cut_area(global_points)
-		print("切り取り開始 - 点の数: ", global_points.size())
 		print("切り取り処理完了 - 割合: ", percentage, "%")
-
+		
 		# UIに進捗を反映
 		var ui_manager = get_parent().get_parent().get_node("UIManager")
 		if ui_manager:
 			ui_manager.update_progress(percentage)
-			
-			# 描画モードに応じたスコア計算
-			var area_size = draw_points.size()  # 簡易的な面積計算
-			var points = area_size * (2 if draw_mode == "fast" else 1)
-			ui_manager.update_score(points)
+			ui_manager.update_score(draw_points.size() * (2 if draw_mode == "fast" else 1))
 		
-		# デバッグ - 切り取られた領域の可視化（オプション）
+		# デバッグ表示
 		var debug_line = Line2D.new()
 		debug_line.points = PackedVector2Array(draw_points)
-		debug_line.default_color = Color(1, 1, 0, 0.5)  # 黄色半透明
+		debug_line.default_color = Color(1, 1, 0, 0.5)
 		debug_line.width = 1.0
 		get_parent().add_child(debug_line)
 	
+	# 描画状態をリセット
 	drawing = false
 	draw_points.clear()
 	drawing_line.clear_points()
-
-# 描画失敗時の処理（Qixなどの敵に接触した場合）
-func drawing_fail():
-	if drawing:
-		drawing = false
-		draw_points.clear()
-		drawing_line.clear_points()
-		
-		# 残機を減らす
-		var ui_manager = get_parent().get_parent().get_node("UIManager")
-		if ui_manager:
-			ui_manager.lose_life()
-		
-		# 一時的に描画を無効にする
-		can_draw = false
-		modulate = Color(1, 0, 0, 1)  # 赤色に点滅
-		
-		# 2秒後に回復
-		await get_tree().create_timer(2.0).timeout
-		can_draw = true
-		modulate = Color(1, 1, 1, 1)  # 通常色に戻す

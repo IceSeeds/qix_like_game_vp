@@ -79,19 +79,7 @@ func init_mask():
 	if shader:
 		shader_material.shader = shader
 	else:
-		# シェーダーファイルがない場合はコードから生成
-		shader_material.shader = Shader.new()
-		shader_material.shader.code = """
-		shader_type canvas_item;
-		uniform sampler2D mask_texture : hint_default_white;
-		
-		void fragment() {
-			vec4 color = texture(TEXTURE, UV);
-			float mask = texture(mask_texture, UV).a;
-			color.a *= mask;
-			COLOR = color;
-		}
-		"""
+		print( "not found sheder file" )
 	
 	shader_material.set_shader_parameter("mask_texture", current_mask_texture)
 	top_image.material = shader_material
