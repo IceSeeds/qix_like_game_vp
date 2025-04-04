@@ -7,6 +7,11 @@ var draw_mode = "slow"  # "slow" または "fast"
 var drawing_line: Line2D
 var can_draw = true
 
+# プレイヤースクリプトに追加
+var boundary_min = Vector2.ZERO
+var boundary_max = Vector2.ZERO
+
+
 func _ready():
 	drawing_line = get_node("../DrawingLine")
 
@@ -19,6 +24,10 @@ func _physics_process(delta):
 		velocity = Vector2.ZERO
 	
 	move_and_slide()
+
+	# 移動後に境界チェック
+	position.x = clamp(position.x, boundary_min.x, boundary_max.x)
+	position.y = clamp(position.y, boundary_min.y, boundary_max.y)
 	
 	# 描画状態の処理
 	if can_draw:
@@ -37,6 +46,10 @@ func _physics_process(delta):
 		draw_points.append(local_pos)
 		drawing_line.points = PackedVector2Array(draw_points)
 
+func set_movement_boundary(min_pos: Vector2, max_pos: Vector2):
+	boundary_min = min_pos
+	boundary_max = max_pos
+
 func start_drawing(mode):
 	drawing = true
 	draw_mode = mode
@@ -45,6 +58,7 @@ func start_drawing(mode):
 	# 重要: 最初の点も座標変換する
 	var local_pos = drawing_line.to_local(global_position)
 	draw_points.append(local_pos)
+	print( local_pos )
 	
 	# 描画線の設定
 	drawing_line.clear_points()

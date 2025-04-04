@@ -77,7 +77,7 @@ func next_level():
 func lose_life():
 	lives -= 1
 	lives_label.text = "残機: " + str(lives)
-	
+
 	if lives <= 0:
 		game_over()
 

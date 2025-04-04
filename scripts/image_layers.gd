@@ -13,10 +13,21 @@ func _ready():
 	# 初期状態では空の状態にしておく
 	if bottom_image and top_image:
 		# 画像サイズを設定
-		#bottom_image.scale = Vector2(5, 5)
-		#top_image.scale = Vector2(5, 5)
 		bottom_image.scale = Vector2(1, 1)
 		top_image.scale = Vector2(1, 1)
+
+		# 中央揃えにして座標変換を簡素化
+		bottom_image.centered = true
+		top_image.centered = true
+
+		# さらに、画像の位置を明示的に設定
+		bottom_image.position = Vector2(0, 0)
+		top_image.position = Vector2(0, 0)
+		
+		# デバッグ情報
+		#print("Top image size: ", top_image.texture.get_size())
+		print("Top image scale: ", top_image.scale)
+		print("Top image position: ", top_image.position)
 		
 		# 画像セレクタから初期画像をロード
 		var image_selector = get_parent().get_node("ImageSelector")
@@ -25,6 +36,7 @@ func _ready():
 			print( initial_pair )
 			if initial_pair:
 				load_image_pair(initial_pair["top"], initial_pair["bottom"])
+				auto_fit_image()
 			else:
 				# 画像が見つからない場合は空の状態を初期化
 				init_empty_state()
@@ -85,67 +97,73 @@ func cut_area(area_points):
 	if area_points.size() < 3:
 		return 0.0
 	
-	# デバッグ情報
 	print("領域の点数: ", area_points.size())
 	
 	# テクスチャサイズを取得
 	var tex_img = top_image.texture.get_image()
 	var texture_size = tex_img.get_size()
-	print("テクスチャサイズ: ", texture_size)
 	
-	# マスク画像を直接作成
-	var mask_image = tex_img.duplicate()
+	# マスク画像を取得
+	var mask_image = current_mask_texture.get_image()
 	
-	# 画面座標からテクスチャ座標への変換を改善
-	var local_points = []
+	# 座標変換
+	var polygon_points = []
 	for point in area_points:
-		# グローバル座標からトップ画像のローカル座標へ
-		var local_point = top_image.to_local(point)
-		# スケール調整（より正確に）
-		var tex_point = Vector2(
-			local_point.x / top_image.scale.x,
-			local_point.y / top_image.scale.y
+		# グローバル座標から画像の正規化座標に変換
+		var local_pos = top_image.to_local(point)
+		# 正規化座標からピクセル座標に変換
+		var pixel_pos = Vector2i(
+			(local_pos.x + texture_size.x / 2.0) / top_image.scale.x,
+			(local_pos.y + texture_size.y / 2.0) / top_image.scale.y
 		)
-		local_points.append(tex_point)
+		polygon_points.append(pixel_pos)
 	
-	# ポリゴンの描画（フィル処理）
-	var polygon = PackedVector2Array(local_points)
+	# バウンディングボックスを計算して処理範囲を限定
+	var min_x = texture_size.x
+	var min_y = texture_size.y
+	var max_x = 0
+	var max_y = 0
 	
-	# 単純なバウンディングボックス方式から、
-	# Godotの画像処理機能を使用した方法に変更
-	var temp_img = Image.create(texture_size.x, texture_size.y, false, Image.FORMAT_RGBA8)
-	temp_img.fill(Color(0, 0, 0, 0))  # 透明で初期化
+	for point in polygon_points:
+		min_x = min(min_x, point.x)
+		min_y = min(min_y, point.y)
+		max_x = max(max_x, point.x)
+		max_y = max(max_y, point.y)
 	
-	# ポリゴンを白で描画（これがマスクになる）
-	for y in range(texture_size.y):
-		for x in range(texture_size.x):
-			if is_point_in_polygon(Vector2(x, y), polygon):
-				temp_img.set_pixel(x, y, Color(1, 1, 1, 1))
+	# 範囲をテクスチャ内に制限
+	min_x = max(0, min_x)
+	min_y = max(0, min_y)
+	max_x = min(texture_size.x - 1, max_x)
+	max_y = min(texture_size.y - 1, max_y)
 	
-	# マスク画像を作成し、切り取り部分を透明に
-	for y in range(texture_size.y):
-		for x in range(texture_size.x):
-			if temp_img.get_pixel(x, y).a > 0.5:  # マスク部分
-				mask_bitmap.set_bit(x, y, false)  # ビットマップを更新
-				mask_image.set_pixel(x, y, Color(0, 0, 0, 0))  # 透明にする
+	# カウント用変数
+	var cut_pixels = 0
+	
+	# バウンディングボックス内のみを処理
+	for y in range(min_y, max_y + 1):
+		for x in range(min_x, max_x + 1):
+			if is_point_in_polygon(Vector2(x, y), polygon_points):
+				# ピクセルがポリゴン内にある場合、マスクを更新
+				if mask_bitmap.get_bit(x, y):
+					mask_bitmap.set_bit(x, y, false)
+					mask_image.set_pixel(x, y, Color(0, 0, 0, 0))
+					cut_pixels += 1
 	
 	# マスクテクスチャを更新
 	current_mask_texture.update(mask_image)
 	
-	# 切り取られたピクセル数のカウント
-	var count = 0
-	for y in range(texture_size.y):
-		for x in range(texture_size.x):
-			if not mask_bitmap.get_bit(x, y):
-				count += 1
-	
 	# 切り取り割合を計算
 	var total_pixels = texture_size.x * texture_size.y
-	var percentage = (count / float(total_pixels)) * 100
-	print("修正されたピクセル数: ", count)
+	var percentage = (cut_pixels / float(total_pixels)) * 100
+	print("修正されたピクセル数: ", cut_pixels)
 	print("切り取り割合: ", percentage, "%")
 	
-	return percentage
+	# 現在の切り取り状況に新しく切り取ったピクセルを加える
+	var current_cut_pixels = calculate_cut_pixels()
+	var total_percentage = (current_cut_pixels / float(total_pixels)) * 100
+	print("合計切り取り割合: ", total_percentage, "%")
+	
+	return total_percentage  # 累積の切り取り割合を返す
 
 # 点が領域内にあるかチェックするヘルパー関数
 func is_point_in_polygon(point, polygon):
@@ -196,3 +214,21 @@ func load_image_pair(top_path, bottom_path):
 	
 	print("画像のロードに失敗しました")
 	return false
+
+func auto_fit_image():
+	# 表示したい領域のサイズ（例：画面の中央部分）
+	var container_size = Vector2(600, 600) # 任意のサイズに変更可能
+	
+	if bottom_image and bottom_image.texture and top_image and top_image.texture:
+		var texture_size = top_image.texture.get_size()
+		
+		# 縦横比を維持しながら画像全体が表示されるようにスケール計算
+		var scale_x = container_size.x / texture_size.x
+		var scale_y = container_size.y / texture_size.y
+		var scale_factor = min(scale_x, scale_y)
+		
+		# スケールを両方の画像に適用
+		bottom_image.scale = Vector2(scale_factor, scale_factor)
+		top_image.scale = Vector2(scale_factor, scale_factor)
+		
+		print("画像を自動的に調整しました。スケール: ", scale_factor)
